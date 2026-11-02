@@ -30,10 +30,14 @@ test('monthly and per-request reservations both constrain model selection', () =
     assert.throws(() => chooseCloudModel([{ ...models[0], pricing: { prompt: invalid, completion: 0 } }], 'hello', settings), /cost limits/);
   }
   assert.throws(() => chooseCloudModel([{ ...models[0], pricing: { prompt: 0, completion: 0, request: null } }], 'hello', settings), /cost limits/);
+  assert.throws(() => chooseCloudModel([{ ...models[0], top_provider: { max_completion_tokens: -100000 } }], 'hello', settings), /cost limits/);
 });
 test('routing modes prefer eligible model classes while respecting cost limits', () => {
   const make = (id, price) => ({ id, pricing: { prompt: price, completion: price }, context_length: 32000, architecture: { input_modalities: ['text'], output_modalities: ['text'] } });
   const models = [make('test/mini', .0000001), make('test/large', .0000002)];
   assert.equal(chooseCloudModel(models, 'hello', { ...AI_DEFAULTS, quality: 'economy' }).id, 'test/mini');
   assert.equal(chooseCloudModel(models, 'hello', { ...AI_DEFAULTS, quality: 'quality' }).id, 'test/large');
+  const specialties = [make('test/coder', 0), make('test/general', .0000001)];
+  assert.equal(chooseCloudModel(specialties, 'hello', { ...AI_DEFAULTS, quality: 'economy' }).id, 'test/general');
+  assert.equal(chooseCloudModel(specialties, 'debug this code', { ...AI_DEFAULTS, quality: 'economy' }).id, 'test/coder');
 });

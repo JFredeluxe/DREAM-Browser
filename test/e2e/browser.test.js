@@ -133,7 +133,8 @@ test('DREAM real desktop milestone', { timeout: 180000 }, async t => {
       try {
         await overlay.getByLabel('Ask DREAM Assistant').fill('Say hello');
         await overlay.getByRole('button', { name: 'Send ↗' }).click();
-        await wait(async () => await overlay.locator('.streaming').count() && (await overlay.locator('.streaming').textContent()).includes('First'), 'Streaming text did not appear');
+        try { await wait(async () => await overlay.locator('.streaming').count() && (await overlay.locator('.streaming').textContent()).includes('First'), 'Streaming text did not appear'); }
+        catch (error) { throw new Error(`${error.message}; route: ${await overlay.locator('.route-note').innerText()}; conversation: ${await overlay.locator('.chat-log').innerText()}`); }
         await overlay.getByText('First second').waitFor();
       } finally { await electron.evaluate(() => globalThis.__restoreAiFetch()); }
       await overlay.getByRole('button', { name: 'Close', exact: true }).click();

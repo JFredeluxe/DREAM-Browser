@@ -179,9 +179,9 @@ function assistant() {
       if (!frame) frame = requestAnimationFrame(() => { frame = 0; const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 80; streamNode.textContent = streamed; if (nearBottom) log.scrollTop = log.scrollHeight; });
     };
     try {
-      const local = await rpc('assistant:local', { text });
+      const local = await rpc('assistant:local', { text, token: requestToken });
       if (stopRequested || current?.kind !== 'assistant' || current.token !== requestToken) throw new Error('Aborted');
-      const answer = local ? { ...local, route: 'DREAM · on this device', reservedUSD: 0 } : await rpc('assistant:ask', { text });
+      const answer = local ? { ...local, route: 'DREAM · on this device', reservedUSD: 0 } : await rpc('assistant:ask', { text, token: requestToken });
       transcript.push({ role: 'assistant', label: answer.route, text: answer.text });
       route.textContent = answer.reservedUSD ? `${answer.route} · estimated up to $${answer.reservedUSD.toFixed(4)}` : `${answer.route} · no OpenRouter charge`;
     }

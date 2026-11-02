@@ -49,6 +49,7 @@ const METHODS = {
   'assistant:models': dw => { if (dw.ghost) throw new Error('AI is disabled in Ghost Mode.'); return dw.assistant.localModels(); },
   'assistant:local': (dw, p) => {
     if (dw.ghost) throw new Error('AI is disabled in Ghost Mode.');
+    if (dw.overlay.kind !== 'assistant' || dw.overlay.current?.token !== p?.token) throw new Error('Assistant closed.');
     const intent = browserIntent(str(p.text, 1000));
     if (!intent) return null;
     if (intent.type === 'pin') {
@@ -63,6 +64,7 @@ const METHODS = {
   'assistant:configure': (dw, p) => { if (dw.ghost) throw new Error('AI is disabled in Ghost Mode.'); return dw.assistant.configure(p); },
   'assistant:ask': (dw, p) => {
     if (dw.ghost) throw new Error('AI is disabled in Ghost Mode.');
+    if (dw.overlay.kind !== 'assistant' || dw.overlay.current?.token !== p?.token) throw new Error('Assistant closed.');
     const token = dw.overlay.current?.token;
     return dw.assistant.ask(dw.win.webContents.id, str(p.text, 24001), chunk => {
       if (dw.overlay.kind === 'assistant' && dw.overlay.current?.token === token && !dw.overlay.webContents.isDestroyed()) dw.overlay.webContents.send('assistant:chunk', { token, chunk });
