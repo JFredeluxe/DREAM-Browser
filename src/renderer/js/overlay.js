@@ -4,7 +4,7 @@ import { renderAnswer } from './answer.js';
 import { SEARCH_ENGINES } from '../../shared/url.js';
 
 const root = $('#root');
-let current = null, state = null, transcript = [], streamSink = null, routeSink = null;
+let current = null, state = null, transcript = [], transcriptVersion = 0, streamSink = null, routeSink = null;
 window.dream.on('assistant:chunk', data => { if (current?.kind === 'assistant' && current.token === data.token) streamSink?.(data.chunk); });
 window.dream.on('assistant:route', data => { if (current?.kind === 'assistant' && current.token === data.token) routeSink?.(data); });
 const rpc = (method, data) => window.dream.call(method, data);
@@ -156,6 +156,7 @@ function assistant() {
   const form = h('form', { class: 'composer', onsubmit: async event => {
     event.preventDefault(); if (!prompt.value.trim() || busy || preparing) return;
     const requestToken = current?.token;
+    const requestVersion = transcriptVersion;
     let text = prompt.value;
     preparing = true;
     try {
@@ -172,27 +173,29 @@ function assistant() {
     }
     } catch (error) { route.textContent = error.message; return; }
     finally { preparing = false; }
-    if (current?.kind !== 'assistant' || current.token !== requestToken) return;
+    if (current?.kind !== 'assistant' || current.token !== requestToken || transcriptVersion !== requestVersion) return;
     prompt.value = ''; busy = true; stopRequested = false; send.disabled = true; stop.hidden = false; attach.disabled = true; attachTabs.disabled = true;
     route.textContent = 'Finding the right route…'; transcript.push({ role: 'user', label: 'YOU', text }); draw();
     let streamed = '', frame = 0, streamNode;
-    streamSink = chunk => {
+    const sink = chunk => {
       streamed += chunk;
       if (!streamNode) { log.querySelector('.thinking')?.remove(); streamNode = h('div', { class: 'message assistant streaming', 'aria-live': 'off' }); log.append(streamNode); }
       if (!frame) frame = requestAnimationFrame(() => { frame = 0; const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 80; streamNode.textContent = streamed; if (nearBottom) log.scrollTop = log.scrollHeight; });
     };
+    streamSink = sink;
     try {
       const local = await rpc('assistant:local', { text, token: requestToken });
       if (stopRequested || current?.kind !== 'assistant' || current.token !== requestToken) throw new Error('Aborted');
       const answer = local ? { ...local, route: 'DREAM · on this device', reservedUSD: 0 } : await rpc('assistant:ask', { text, token: requestToken });
+      if (transcriptVersion !== requestVersion) return;
       transcript.push({ role: 'assistant', label: answer.route, text: answer.text, source: answer.source, results: answer.results });
       route.textContent = answer.reservedUSD ? `${answer.route} · estimated up to $${answer.reservedUSD.toFixed(4)}` : `${answer.route} · no OpenRouter charge`;
     }
-    catch (error) { if (streamed) transcript.push({ role: 'assistant', label: 'PARTIAL ANSWER', text: streamed }); transcript.push({ role: 'error', label: 'LET’S TRY AGAIN', text: /abort/i.test(error.message) ? 'Stopped. Your draft is ready when you are.' : error.message }); prompt.value = text; route.textContent = 'Your message has been kept in the draft.'; }
-    finally { streamSink = null; if (frame) cancelAnimationFrame(frame); busy = false; send.disabled = false; stop.hidden = true; attach.disabled = false; attachTabs.disabled = false; draw(); prompt.focus(); }
+    catch (error) { if (transcriptVersion === requestVersion) { if (streamed) transcript.push({ role: 'assistant', label: 'PARTIAL ANSWER', text: streamed }); transcript.push({ role: 'error', label: 'LET’S TRY AGAIN', text: /abort/i.test(error.message) ? 'Stopped. Your draft is ready when you are.' : error.message }); prompt.value = text; route.textContent = 'Your message has been kept in the draft.'; } }
+    finally { if (streamSink === sink) streamSink = null; if (frame) cancelAnimationFrame(frame); busy = false; send.disabled = false; stop.hidden = true; attach.disabled = false; attachTabs.disabled = false; draw(); prompt.focus(); }
   } }, prompt, h('div', { class: 'composer-actions' }, attach, attachTabs, h('span', { class: 'keyboard-hint' }, 'Ctrl + Enter to send'), stop, send));
   prompt.addEventListener('keydown', event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); form.requestSubmit(); } });
-  panel.append(form, route, h('div', { class: 'assistant-foot' }, note('Only the messages you send are used. Check important answers.'), button('New conversation', safe(async () => { await rpc('assistant:clear'); transcript = []; draw(); prompt.focus(); }), 'link-btn')));
+  panel.append(form, route, h('div', { class: 'assistant-foot' }, note('Only the messages you send are used. Check important answers.'), button('New conversation', safe(async () => { transcriptVersion++; streamSink = null; transcript = []; prompt.value = ''; draw(); await rpc('assistant:clear'); prompt.focus(); }), 'link-btn')));
 }
 
 function integrations() {
