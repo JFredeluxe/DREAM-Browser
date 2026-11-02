@@ -1,6 +1,7 @@
 // Small, explicit local commands. No browser data is sent to an AI provider.
 export function browserIntent(text) {
   const input = String(text).trim();
+  if (/^(?:sort|organize) (?:my |the )?tabs alphabetically[.!]?$/i.test(input)) return { type: 'sort' };
   const pin = /^(unpin|pin) (?:this|the current|the active) tab[.!]?$/i.exec(input);
   if (pin) return { type: 'pin', pinned: pin[1].toLowerCase() === 'pin' };
   const find = /^(?:find|search|show) (?:my )?(tabs?|bookmarks?|history)(?: (?:matching|for|about|containing))?\s+(.+?)[?.!]?$/i.exec(input);
@@ -11,5 +12,5 @@ export function browserIntent(text) {
 export function browserSearch(intent, { tabs, bookmarks, history }) {
   const list = intent.source === 'tab' ? tabs : intent.source === 'bookmark' ? bookmarks : history;
   return list.filter(item => `${item.title || ''} ${item.url || ''}`.toLowerCase().includes(intent.query))
-    .slice(0, 8).map(item => ({ title: String(item.title || item.url || '').slice(0, 200), url: String(item.url || '').slice(0, 500) }));
+    .slice(0, 8).map(item => ({ id: String(item.id || ''), title: String(item.title || item.url || '').slice(0, 200), url: String(item.url || '').slice(0, 500) }));
 }

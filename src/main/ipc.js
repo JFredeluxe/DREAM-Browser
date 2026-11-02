@@ -52,6 +52,11 @@ const METHODS = {
     if (dw.overlay.kind !== 'assistant' || dw.overlay.current?.token !== p?.token) throw new Error('Assistant closed.');
     const intent = browserIntent(str(p.text, 1000));
     if (!intent) return null;
+    if (intent.type === 'sort') {
+      const tabs = [...dw.tabs.list()].sort((a, b) => Number(b.pinned) - Number(a.pinned) || (a.title || a.url).localeCompare(b.title || b.url));
+      tabs.forEach((tab, index) => dw.tabs.move(tab.id, index));
+      return { text: 'Sorted tabs alphabetically, keeping pinned tabs together.' };
+    }
     if (intent.type === 'pin') {
       const tab = dw.tabs.active;
       if (!tab) return { text: 'There is no active tab.' };
@@ -59,7 +64,16 @@ const METHODS = {
       return { text: intent.pinned ? 'Pinned the current tab.' : 'Unpinned the current tab.' };
     }
     const matches = browserSearch(intent, { tabs: dw.tabs.list(), bookmarks: dw.bookmarks.items, history: dw.history.entries });
-    return { text: matches.length ? matches.map(item => `${item.title}\n${item.url}`).join('\n\n') : `No ${intent.source} matches found.` };
+    return { text: matches.length ? `Found ${matches.length} matching ${intent.source}${matches.length === 1 ? '' : 's'}.` : `No ${intent.source} matches found.`, source: intent.source, results: matches };
+  },
+  'assistant:open': (dw, p) => {
+    if (dw.ghost) throw new Error('AI is disabled in Ghost Mode.');
+    if (dw.overlay.kind !== 'assistant' || dw.overlay.current?.token !== p?.token) throw new Error('Assistant closed.');
+    if (p.source === 'tab') { const tab = dw.tabs.get(str(p.id, 32)); if (!tab) throw new Error('That tab is no longer open.'); dw.tabs.activate(tab.id); }
+    else if (p.source === 'bookmark') { const item = dw.bookmarks.items.find(item => item.id === str(p.id, 64)); if (!item) throw new Error('That bookmark no longer exists.'); dw.newTab(item.url); }
+    else if (p.source === 'history') { const item = dw.history.entries.find(item => item.url === str(p.url, 500)); if (!item) throw new Error('That history entry no longer exists.'); dw.newTab(item.url); }
+    else throw new Error('Unknown browser result.');
+    dw.overlay.hide();
   },
   'assistant:configure': (dw, p) => { if (dw.ghost) throw new Error('AI is disabled in Ghost Mode.'); return dw.assistant.configure(p); },
   'assistant:ask': (dw, p) => {

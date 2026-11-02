@@ -62,6 +62,9 @@ test('DREAM real desktop milestone', { timeout: 180000 }, async t => {
       await wait(() => electron.windows().filter(p => p.url() === 'dream://ui/renderer/index.html').length === 2, 'Ghost toolbar did not load');
       const ghostPage = electron.windows().find(p => p.url() === 'dream://ui/renderer/index.html' && p !== chrome);
       await assert.rejects(ghostPage.evaluate(() => window.dream.call('assistant:ask', { text: 'secret' })), /disabled in Ghost/);
+      await assert.rejects(ghostPage.evaluate(() => window.dream.call('assistant:local', { text: 'find tabs cats' })), /disabled in Ghost/);
+      await assert.rejects(ghostPage.evaluate(() => window.dream.call('assistant:tabs')), /disabled in Ghost/);
+      await assert.rejects(ghostPage.evaluate(() => window.dream.call('assistant:page')), /disabled in Ghost/);
       await assert.rejects(ghostPage.evaluate(() => window.dream.call('extensions:install')), /disabled in Ghost/);
       await electron.evaluate(() => [...globalThis.__dreamWindows.values()].find(w => w.ghost).win.close());
     });
@@ -138,6 +141,9 @@ test('DREAM real desktop milestone', { timeout: 180000 }, async t => {
         catch (error) { throw new Error(`${error.message}; route: ${await overlay.locator('.route-note').innerText()}; chunks: ${JSON.stringify(await overlay.evaluate(() => window.__streamChunks))}; conversation: ${await overlay.locator('.chat-log').innerText()}`); }
         assert.match(await overlay.locator('.route-note').innerText(), /Ollama · test/);
         await overlay.getByText('First second').waitFor();
+        await overlay.getByLabel('Ask DREAM Assistant').fill('find tabs about 127.0.0.1');
+        await overlay.getByRole('button', { name: 'Send ↗' }).click();
+        await overlay.locator('.result-link').first().waitFor();
       } finally { await electron.evaluate(() => globalThis.__restoreAiFetch()); }
       await overlay.getByRole('button', { name: 'Close', exact: true }).click();
       await wait(() => electron.evaluate(() => !globalThis.__dream.overlay.view.getVisible()), 'Assistant did not close');

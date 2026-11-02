@@ -128,6 +128,7 @@ function assistant() {
     for (const message of transcript) {
       const card = h('article', { class: `message ${message.role}` }, h('div', { class: 'message-top' }, h('span', { class: 'message-label' }, message.label)));
       card.append(message.role === 'assistant' ? renderAnswer(message.text) : h('div', { class: 'message-text' }, message.text));
+      if (message.results?.length) for (const item of message.results) card.append(button(item.title || item.url, safe(() => rpc('assistant:open', { source: message.source, id: item.id, url: item.url, token: current?.token })), 'link-btn result-link'));
       if (message.role === 'assistant') card.append(button('Copy answer', safe(async event => { const target = event.currentTarget; await rpc('clipboard:write', { text: message.text }); target.textContent = 'Copied'; }), 'link-btn copy-answer'));
       log.append(card);
     }
@@ -184,7 +185,7 @@ function assistant() {
       const local = await rpc('assistant:local', { text, token: requestToken });
       if (stopRequested || current?.kind !== 'assistant' || current.token !== requestToken) throw new Error('Aborted');
       const answer = local ? { ...local, route: 'DREAM · on this device', reservedUSD: 0 } : await rpc('assistant:ask', { text, token: requestToken });
-      transcript.push({ role: 'assistant', label: answer.route, text: answer.text });
+      transcript.push({ role: 'assistant', label: answer.route, text: answer.text, source: answer.source, results: answer.results });
       route.textContent = answer.reservedUSD ? `${answer.route} · estimated up to $${answer.reservedUSD.toFixed(4)}` : `${answer.route} · no OpenRouter charge`;
     }
     catch (error) { if (streamed) transcript.push({ role: 'assistant', label: 'PARTIAL ANSWER', text: streamed }); transcript.push({ role: 'error', label: 'LET’S TRY AGAIN', text: /abort/i.test(error.message) ? 'Stopped. Your draft is ready when you are.' : error.message }); prompt.value = text; route.textContent = 'Your message has been kept in the draft.'; }
