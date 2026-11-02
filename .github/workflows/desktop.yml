@@ -36,10 +36,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: node --test test/e2e/browser.test.js
       - run: pnpm dist
+      - run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item ../windows/DREAM-Browser-Setup-0.1.0.exe dist/
       - uses: actions/upload-artifact@v4
         with:
           name: DREAM-Windows
-          path: ../windows/*.exe
+          path: dist/*.exe
       - name: Publish Windows preview
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
@@ -48,7 +51,7 @@ jobs:
         run: |
           gh release view v0.1.0-preview 2>$null
           if ($LASTEXITCODE -ne 0) {
-            gh release create v0.1.0-preview ../windows/DREAM-Browser-Setup-0.1.0.exe --target ${{ github.sha }} --title "DREAM Browser 0.1.0 preview" --notes "Unsigned Windows preview. Chrome extension compatibility is partial; Android is not yet available." --prerelease
+            gh release create v0.1.0-preview dist/DREAM-Browser-Setup-0.1.0.exe --target ${{ github.sha }} --title "DREAM Browser 0.1.0 preview" --notes "Unsigned Windows preview. Chrome extension compatibility is partial; Android is not yet available." --prerelease
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
