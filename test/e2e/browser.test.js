@@ -106,10 +106,15 @@ test('DREAM real desktop milestone', { timeout: 180000 }, async t => {
       const result = await electron.evaluate(() => {
         const tabs = globalThis.__dream.tabs; const before = tabs.list().length;
         const created = Array.from({ length: 25 }, () => tabs.create({ url: 'about:blank', active: false }));
-        for (const tab of created) tabs.close(tab.id);
-        return { before, after: tabs.list().length };
+        return { before, ids: created.map(tab => tab.id) };
       });
-      assert.equal(result.after, result.before);
+      await wait(async () => (await chrome.locator('.tab:not(.leaving)').count()) >= result.before + 25, 'Rapidly opened tabs did not render');
+      const after = await electron.evaluate((_e, ids) => {
+        for (const id of ids) globalThis.__dream.tabs.close(id);
+        return globalThis.__dream.tabs.list().length;
+      }, result.ids);
+      assert.equal(after, result.before);
+      await wait(async () => (await chrome.locator('.tab:not(.leaving)').count()) === result.before, 'Rapidly closed tabs did not settle');
       await chrome.emulateMedia({ reducedMotion: 'no-preference' });
     });
     await t.test('internal settings and assistant panels render without errors', async () => {

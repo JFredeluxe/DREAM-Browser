@@ -35,6 +35,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: node --test test/e2e/browser.test.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DREAM-UI-test
+          path: test-results/*.png
+          if-no-files-found: warn
       - run: pnpm dist
       - run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
