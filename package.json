@@ -1,0 +1,65 @@
+{
+  "name": "dream-browser",
+  "productName": "DREAM",
+  "version": "0.1.0",
+  "description": "DREAM - simple by default, powerful by choice.",
+  "private": true,
+  "type": "module",
+  "main": "src/main/index.js",
+  "scripts": {
+    "start": "pnpm build:preload && electron .",
+    "test": "node --test test/unit/*.test.js",
+    "test:e2e": "node --test --test-concurrency=1 test/e2e/*.test.js",
+    "dist": "pnpm build:preload && electron-builder --win nsis --x64 --publish never",
+    "build:preload": "esbuild src/preload/chrome.cjs --bundle --platform=node --format=cjs --external:electron --outfile=src/preload/chrome.bundle.cjs"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "electron-chrome-extensions": "4.10.0",
+    "electron-chrome-web-store": "0.13.0"
+  },
+  "devDependencies": {
+    "electron": "45.2.1",
+    "electron-builder": "26.18.0",
+    "esbuild": "0.28.2",
+    "playwright-core": "1.64.1"
+  },
+  "build": {
+    "appId": "app.dream.browser",
+    "productName": "DREAM Browser",
+    "directories": {
+      "output": "../windows"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico",
+      "signExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "DREAM Browser",
+      "artifactName": "DREAM-Browser-Setup-${version}.${ext}"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Network"
+    }
+  }
+}

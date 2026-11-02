@@ -1,0 +1,92 @@
+/* DREAM design tokens. Solid colours only: no gradients anywhere.
+   chrome/toolbar values are mirrored in src/shared/theme.js (enforced by a unit test). */
+:root {
+  color-scheme: light dark;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+
+  --chrome: #e9ebef;
+  --toolbar: #f7f8fa;
+  --page: #ffffff;
+  --field: #e0e3e8;
+  --field-hover: #d8dce2;
+  --fg: #1c1d20;
+  --fg-muted: #656a73;
+  --fg-faint: #9aa0a9;
+  --border: #d6d9df;
+  --hover: rgba(20, 24, 32, 0.07);
+  --press: rgba(20, 24, 32, 0.13);
+  --pop-bg: #ffffff;
+  --pop-border: rgba(0, 0, 0, 0.09);
+  --pop-shadow: 0 12px 32px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.06);
+  --tab-active-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+
+  --accent: #3a6df0;
+  --accent-fg: #ffffff;
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+
+  --r-s: 6px;
+  --r-m: 8px;
+  --r-l: 12px;
+
+  --tab-h: 40px;
+  --toolbar-h: 44px;
+  --sidebar-w: 248px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --chrome: #18191c;
+    --toolbar: #232428;
+    --page: #1d1e21;
+    --field: #303237;
+    --field-hover: #383a40;
+    --fg: #ececee;
+    --fg-muted: #a0a4ac;
+    --fg-faint: #6d717a;
+    --border: #34363b;
+    --hover: rgba(255, 255, 255, 0.08);
+    --press: rgba(255, 255, 255, 0.14);
+    --pop-bg: #2a2b30;
+    --pop-border: rgba(255, 255, 255, 0.1);
+    --pop-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+    --tab-active-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  font: 13px/1.35 var(--font);
+  color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: default;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+:root[data-theme=light]{color-scheme:light;--chrome:#e9ebef;--toolbar:#f7f8fa;--page:#ffffff;--field:#e0e3e8;--field-hover:#d8dce2;--fg:#1c1d20;--fg-muted:#656a73;--fg-faint:#9aa0a9;--border:#d6d9df;--hover:rgba(20,24,32,.07);--press:rgba(20,24,32,.13);--pop-bg:#ffffff;--pop-border:rgba(0,0,0,.09);--pop-shadow:0 12px 32px rgba(0,0,0,.14),0 2px 6px rgba(0,0,0,.06)}:root[data-theme=dark]{color-scheme:dark;--chrome:#18191c;--toolbar:#232428;--page:#1d1e21;--field:#303237;--field-hover:#383a40;--fg:#ececee;--fg-muted:#a0a4ac;--fg-faint:#6d717a;--border:#34363b;--hover:rgba(255,255,255,.08);--press:rgba(255,255,255,.14);--pop-bg:#2a2b30;--pop-border:rgba(255,255,255,.1);--pop-shadow:0 12px 32px rgba(0,0,0,.5),0 2px 6px rgba(0,0,0,.3)}

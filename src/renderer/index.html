@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: https: http: crx: chrome-extension:; connect-src 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DREAM</title>
+    <link rel="stylesheet" href="css/tokens.css" />
+    <link rel="stylesheet" href="css/chrome.css" />
+  </head>
+  <body>
+    <div class="app" id="app" data-tabs="top">
+      <header id="tabstrip" class="drag">
+        <div id="tabs-h" role="tablist" aria-label="Tabs"></div>
+        <button id="new-tab-h" class="icon-btn" aria-label="New tab" title="New tab"></button>
+      </header>
+
+      <aside id="sidebar" aria-label="Tabs sidebar">
+        <div id="sidebar-head" class="drag"><span class="chrome-brand">DREAM</span><span id="mode-label">CHROMIUM</span></div>
+        <div id="sidebar-body">
+          <div id="tabs-v" role="tablist" aria-label="Tabs"></div>
+          <button id="new-tab-v" aria-label="New tab"></button>
+        </div>
+        <div class="sidebar-footer"><button id="assistant-shortcut">Ask DREAM <span>✧</span></button><button id="ghost">New Ghost window <span>◌</span></button><button id="bookmarks">Bookmarks <span>☆</span></button><span class="sidebar-caption">A little more possibility.</span></div>
+      </aside>
+
+      <div id="toolbar" class="drag" role="toolbar" aria-label="Browser toolbar">
+        <button id="sidebar-toggle" class="icon-btn" aria-label="Toggle sidebar" title="Toggle sidebar"></button>
+        <div class="nav-group">
+          <button id="back" class="icon-btn" aria-label="Back" title="Back"></button>
+          <button id="forward" class="icon-btn" aria-label="Forward" title="Forward"></button>
+          <button id="reload" class="icon-btn" aria-label="Reload" title="Reload"></button>
+        </div>
+        <div class="omnibox" id="omnibox" data-anchor="omnibox">
+          <span class="omni-icon" id="omni-icon"></span>
+          <input
+            id="url"
+            type="text"
+            spellcheck="false"
+            autocomplete="off"
+            autocapitalize="off"
+            placeholder="Search or enter address"
+            aria-label="Address and search bar"
+          />
+          <button id="star" class="icon-btn" aria-label="Bookmark this page" title="Bookmark this page" data-anchor="star"></button>
+        </div>
+        <button id="customize" class="icon-btn" aria-label="Customize" title="Customize" data-anchor="customize"></button>
+        <button id="ai" class="toolbar-text" aria-label="Assistant" title="Optional AI assistant">Ask DREAM</button>
+        <div id="extension-actions"></div>
+        <button id="extensions" class="icon-btn" aria-label="Extensions" title="Extensions"></button>
+        <button id="menu" class="icon-btn" aria-label="Menu" title="Menu" data-anchor="menu"></button>
+      </div>
+
+      <main id="slot" aria-label="Page"></main>
+      <div id="notice" role="status"></div>
+    </div>
+    <script type="module" src="js/chrome.js"></script>
+  </body>
+</html>
