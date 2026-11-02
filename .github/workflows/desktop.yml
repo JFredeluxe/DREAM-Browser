@@ -1,4 +1,6 @@
 name: Desktop qualification
+permissions:
+  contents: write
 on:
   workflow_dispatch:
   push:
@@ -38,3 +40,15 @@ jobs:
         with:
           name: DREAM-Windows
           path: ../windows/*.exe
+      - name: Publish Windows preview
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          gh release view v0.1.0-preview 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create v0.1.0-preview ../windows/DREAM-Browser-Setup-0.1.0.exe --target ${{ github.sha }} --title "DREAM Browser 0.1.0 preview" --notes "Unsigned Windows preview. Chrome extension compatibility is partial; Android is not yet available." --prerelease
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
