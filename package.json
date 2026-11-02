@@ -1,7 +1,7 @@
 {
   "name": "dream-browser",
   "productName": "DREAM",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "DREAM - simple by default, powerful by choice.",
   "private": true,
   "type": "module",

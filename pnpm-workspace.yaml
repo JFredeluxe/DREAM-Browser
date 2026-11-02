@@ -2,3 +2,5 @@ allowBuilds:
   electron: true
   electron-winstaller: false
   esbuild: true
+patchedDependencies:
+  electron-chrome-web-store@0.13.0: patches/electron-chrome-web-store@0.13.0.patch
