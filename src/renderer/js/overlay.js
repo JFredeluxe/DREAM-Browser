@@ -139,7 +139,8 @@ function assistant() {
   const send = button('Send ↗', null, 'btn primary'); send.type = 'submit';
   const stop = button('Stop', () => { stopRequested = true; return rpc('assistant:cancel'); }, 'link-btn'); stop.hidden = true;
   const route = h('div', { class: 'route-note', role: 'status' }, 'Local first. Your choice, every time.');
-  routeSink = data => { route.textContent = data.reservedUSD ? `${data.route} · estimated up to $${data.reservedUSD.toFixed(4)}` : `${data.route} · no OpenRouter charge`; };
+  const describeRoute = data => data.route.startsWith('OpenRouter') ? `${data.route} · estimated up to $${data.reservedUSD.toFixed(4)}` : `${data.route} · no OpenRouter charge`;
+  routeSink = data => { route.textContent = describeRoute(data); };
   const attach = button('Add this page', safe(async () => {
     const text = await rpc('assistant:page');
     if (!text.trim()) { route.textContent = 'Open a web page first.'; return; }
@@ -189,7 +190,7 @@ function assistant() {
       const answer = local ? { ...local, route: 'DREAM · on this device', reservedUSD: 0 } : await rpc('assistant:ask', { text, token: requestToken });
       if (transcriptVersion !== requestVersion) return;
       transcript.push({ role: 'assistant', label: answer.route, text: answer.text, source: answer.source, results: answer.results });
-      route.textContent = answer.reservedUSD ? `${answer.route} · estimated up to $${answer.reservedUSD.toFixed(4)}` : `${answer.route} · no OpenRouter charge`;
+      route.textContent = describeRoute(answer);
     }
     catch (error) { if (transcriptVersion === requestVersion) { if (streamed) transcript.push({ role: 'assistant', label: 'PARTIAL ANSWER', text: streamed }); transcript.push({ role: 'error', label: 'LET’S TRY AGAIN', text: /abort/i.test(error.message) ? 'Stopped. Your draft is ready when you are.' : error.message }); prompt.value = text; route.textContent = 'Your message has been kept in the draft.'; } }
     finally { if (streamSink === sink) streamSink = null; if (frame) cancelAnimationFrame(frame); busy = false; send.disabled = false; stop.hidden = true; attach.disabled = false; attachTabs.disabled = false; draw(); prompt.focus(); }
