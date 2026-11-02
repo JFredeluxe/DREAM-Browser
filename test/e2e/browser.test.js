@@ -129,12 +129,13 @@ test('DREAM real desktop milestone', { timeout: 180000 }, async t => {
       assert.equal(await overlay.locator('input[type=password]').count(), 1);
       await electron.evaluate(() => {
         const original = globalThis.fetch; globalThis.__restoreAiFetch = () => { globalThis.fetch = original; };
-        globalThis.fetch = async url => {
+        globalThis.fetch = async (url, options) => {
           if (url.endsWith('/api/tags')) return new Response(JSON.stringify({ models: [{ name: 'test' }] }));
           const encoder = new TextEncoder();
           return new Response(new ReadableStream({ start(controller) {
             controller.enqueue(encoder.encode('{"message":{"content":"First"},"done":false}\n'));
-            setTimeout(() => { controller.enqueue(encoder.encode('{"message":{"content":" second"},"done":true}\n')); controller.close(); }, 3000);
+            const timer = setTimeout(() => { controller.enqueue(encoder.encode('{"message":{"content":" second"},"done":true}\n')); controller.close(); }, 3000);
+            options?.signal?.addEventListener('abort', () => { clearTimeout(timer); controller.error(new DOMException('Aborted', 'AbortError')); }, { once: true });
           } }), { headers: { 'content-type': 'application/x-ndjson' } });
         };
       });
@@ -149,6 +150,12 @@ test('DREAM real desktop milestone', { timeout: 180000 }, async t => {
         await overlay.getByLabel('Ask DREAM Assistant').fill('find tabs about 127.0.0.1');
         await overlay.getByRole('button', { name: 'Send ↗' }).click();
         await overlay.locator('.result-link').first().waitFor();
+        await overlay.getByLabel('Ask DREAM Assistant').fill('Start another answer');
+        await overlay.getByRole('button', { name: 'Send ↗' }).click();
+        await wait(async () => await overlay.locator('.streaming').count() && (await overlay.locator('.streaming').textContent()).includes('First'), 'Second response did not start');
+        await overlay.getByRole('button', { name: 'New conversation' }).click();
+        await wait(async () => await overlay.getByRole('button', { name: 'Stop' }).isHidden(), 'Canceled response did not stop');
+        await wait(async () => (await overlay.locator('.message').count()) === 0, 'Cleared conversation returned old messages');
       } finally { await electron.evaluate(() => globalThis.__restoreAiFetch()); }
       await overlay.getByRole('button', { name: 'Close', exact: true }).click();
       await wait(() => electron.evaluate(() => !globalThis.__dream.overlay.view.getVisible()), 'Assistant did not close');
