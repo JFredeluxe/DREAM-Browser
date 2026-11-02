@@ -7,7 +7,19 @@ import { readAiStream } from './ai-stream.js';
 export class Assistant {
   constructor(dir, safeStorage) {
     this.safeStorage = safeStorage;
-    this.store = new JsonStore(path.join(dir, 'assistant.json'), { settings: AI_DEFAULTS, day: '', reserved: 0 });
+    const storeFile = path.join(dir, 'assistant.json');
+    let budgetInvalid = false;
+    try {
+      const saved = JSON.parse(fs.readFileSync(storeFile, 'utf8'))?.data;
+      const valid = value => typeof value === 'number' && Number.isFinite(value) && value >= 0;
+      if (!saved || !valid(saved.reserved) || (saved.monthlyReserved !== undefined && !valid(saved.monthlyReserved))) budgetInvalid = true;
+    } catch (error) { if (error.code !== 'ENOENT') budgetInvalid = true; }
+    this.store = new JsonStore(storeFile, { settings: AI_DEFAULTS, day: '', reserved: 0 });
+    if (budgetInvalid) {
+      const day = new Date().toISOString().slice(0, 10);
+      Object.assign(this.store.data, { day, month: day.slice(0, 7), reserved: Number.MAX_SAFE_INTEGER, monthlyReserved: Number.MAX_SAFE_INTEGER });
+      this.store.touch(); this.store.flush();
+    }
     this.store.data.settings = { ...AI_DEFAULTS, ...cleanAiSettings(this.store.data.settings) };
     this.secretFile = path.join(dir, 'openrouter.key');
     this.key = '';
@@ -18,7 +30,7 @@ export class Assistant {
   }
   status() {
     this.rollDay();
-    return { ...this.store.data.settings, hasKey: !!this.key, reservedUSD: this.store.data.reserved, monthlyReservedUSD: this.store.data.monthlyReserved, encryptedStorage: this.safeStorage.isEncryptionAvailable() };
+    return { ...this.store.data.settings, hasKey: !!this.key, reservedUSD: this.store.data.reserved, monthlyReservedUSD: this.store.data.monthlyReserved, budgetLocked: this.store.data.monthlyReserved >= Number.MAX_SAFE_INTEGER, encryptedStorage: this.safeStorage.isEncryptionAvailable() };
   }
   rollDay() {
     const day = new Date().toISOString().slice(0, 10);
@@ -83,6 +95,8 @@ export class Assistant {
       }
       if (!settings.allowCloud) throw new Error('Cloud requests are off. Enable them explicitly in Assistant settings.');
       if (!this.key) throw new Error('Add your OpenRouter API key in Assistant settings.');
+      this.rollDay();
+      if (this.store.data.monthlyReserved >= Number.MAX_SAFE_INTEGER) throw new Error('Cloud requests are paused because the local spending record could not be verified.');
       const catalog = this.catalog && Date.now() - this.catalog.at < 300000 ? this.catalog.data : await this.json('https://openrouter.ai/api/v1/models', { signal });
       this.catalog = { at: Date.now(), data: catalog };
       const excluded = []; let requestReserved = 0;

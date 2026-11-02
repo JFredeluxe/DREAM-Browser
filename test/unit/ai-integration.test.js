@@ -73,3 +73,14 @@ test('monthly reservations survive an application restart', async t => {
   const restored = new Assistant(path.dirname(ai.secretFile), secure);
   assert.equal(restored.status().monthlyReservedUSD, answer.reservedUSD);
 });
+test('a corrupt spending record blocks cloud calls instead of resetting the budget', async t => {
+  const ai = setup(t); const dir = path.dirname(ai.secretFile);
+  fs.writeFileSync(path.join(dir, 'assistant.json'), '{invalid');
+  const restored = new Assistant(dir, secure);
+  restored.store.data.settings = { ...restored.store.data.settings, strategy: 'cloud', allowCloud: true };
+  restored.key = 'test'; let calls = 0;
+  globalThis.fetch = async () => { calls++; throw new Error('unexpected'); };
+  assert.equal(restored.status().budgetLocked, true);
+  await assert.rejects(restored.ask(1, 'hello'), /spending record/);
+  assert.equal(calls, 0);
+});

@@ -111,7 +111,7 @@ function assistant() {
   details.append(limits);
   const saved = h('span', { class: 'note', role: 'status' });
   details.append(h('div', { class: 'actions' }, button('Forget key', safe(async () => { await rpc('assistant:configure', { clearKey: true }); saved.textContent = 'Key removed.'; }), 'link-btn danger'), button('Save connections', safe(async () => { const result = await rpc('assistant:configure', { ...draft, apiKey: key.value }); key.value = ''; Object.assign(status, result); saved.textContent = 'Saved. You’re ready to ask.'; chips.children[1].textContent = result.allowCloud ? 'Cloud allowed' : 'Cloud off'; }), 'btn primary')), saved,
-    note(`Reserved today: $${status.reservedUSD.toFixed(4)} · this month: $${status.monthlyReservedUSD.toFixed(4)}. Estimates reset in UTC. Provider-side spending limits are separate.`));
+    note(status.budgetLocked ? 'Cloud requests are paused because the local spending record could not be verified.' : `Reserved today: $${status.reservedUSD.toFixed(4)} · this month: $${status.monthlyReservedUSD.toFixed(4)}. Estimates reset in UTC. Provider-side spending limits are separate.`));
   panel.append(details);
   const log = h('div', { class: 'chat-log', 'aria-live': 'polite', role: 'log', 'aria-label': 'Conversation' });
   const prompt = h('textarea', { class: 'prompt', rows: 3, maxLength: 24000, placeholder: 'What’s on your mind?', 'aria-label': 'Ask DREAM Assistant' });
@@ -125,8 +125,8 @@ function assistant() {
       for (const suggestion of ['Explain this simply', 'Help me write something', 'Compare two ideas']) suggestions.append(button(suggestion, () => { prompt.value = suggestion + ': '; prompt.focus(); }, 'suggestion-chip'));
       empty.append(suggestions); log.append(empty);
     }
-    for (const message of transcript) {
-      const card = h('article', { class: `message ${message.role}` }, h('div', { class: 'message-top' }, h('span', { class: 'message-label' }, message.label)));
+    for (const [index, message] of transcript.entries()) {
+      const card = h('article', { class: `message ${message.role}${index === transcript.length - 1 ? ' new-message' : ''}` }, h('div', { class: 'message-top' }, h('span', { class: 'message-label' }, message.label)));
       card.append(message.role === 'assistant' ? renderAnswer(message.text) : h('div', { class: 'message-text' }, message.text));
       if (message.results?.length) for (const item of message.results) card.append(button(item.title || item.url, safe(() => rpc('assistant:open', { source: message.source, id: item.id, url: item.url, token: current?.token })), 'link-btn result-link'));
       if (message.role === 'assistant') card.append(button('Copy answer', safe(async event => { const target = event.currentTarget; await rpc('clipboard:write', { text: message.text }); target.textContent = 'Copied'; }), 'link-btn copy-answer'));
