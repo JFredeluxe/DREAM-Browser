@@ -14,6 +14,9 @@ export const SPRINGS = {
 const active = new Set();
 let raf = 0;
 let last = 0;
+reduceMotion.addEventListener?.('change', event => {
+  if (event.matches) for (const spring of [...active]) spring.set(spring.target);
+});
 
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 1 / 20);
@@ -50,6 +53,13 @@ export class Spring {
     active.delete(this);
     this.onUpdate(value);
     this.onSettle?.();
+  }
+
+  /** Stop without triggering an obsolete completion callback. */
+  cancel() {
+    active.delete(this);
+    this.velocity = 0;
+    this.onSettle = null;
   }
 
   /** Animate towards target, keeping whatever velocity we already have. */

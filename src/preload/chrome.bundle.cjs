@@ -426,7 +426,7 @@ var require_browser_action = __commonJS({
 // src/preload/chrome.cjs
 var { contextBridge, ipcRenderer } = require("electron");
 require_browser_action().injectBrowserAction();
-var EVENTS = /* @__PURE__ */ new Set(["state", "ui:notice", "ui:focus-omnibox", "overlay:show", "overlay:update", "overlay:hide"]);
+var EVENTS = /* @__PURE__ */ new Set(["state", "ui:notice", "ui:focus-omnibox", "overlay:show", "overlay:update", "overlay:hide", "assistant:chunk"]);
 contextBridge.exposeInMainWorld("dream", {
   call: (method, payload) => ipcRenderer.invoke("rpc", String(method), payload),
   on: (event, callback) => {

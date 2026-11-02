@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron';
+import { browserIntent, browserSearch } from './assistant-browser.js';
 
 const str = (v, max = 2048) => (typeof v === 'string' ? v.slice(0, max) : '');
 const num = (v) => (Number.isFinite(v) ? v : 0);
@@ -46,10 +47,34 @@ const METHODS = {
   'assistant:show': dw => dw.showAssistant(),
   'assistant:status': dw => { if (dw.ghost) throw new Error('AI is disabled in Ghost Mode.'); return dw.assistant.status(); },
   'assistant:models': dw => { if (dw.ghost) throw new Error('AI is disabled in Ghost Mode.'); return dw.assistant.localModels(); },
+  'assistant:local': (dw, p) => {
+    if (dw.ghost) throw new Error('AI is disabled in Ghost Mode.');
+    const intent = browserIntent(str(p.text, 1000));
+    if (!intent) return null;
+    if (intent.type === 'pin') {
+      const tab = dw.tabs.active;
+      if (!tab) return { text: 'There is no active tab.' };
+      dw.tabs.setPinned(tab.id, intent.pinned);
+      return { text: intent.pinned ? 'Pinned the current tab.' : 'Unpinned the current tab.' };
+    }
+    const matches = browserSearch(intent, { tabs: dw.tabs.list(), bookmarks: dw.bookmarks.items, history: dw.history.entries });
+    return { text: matches.length ? matches.map(item => `${item.title}\n${item.url}`).join('\n\n') : `No ${intent.source} matches found.` };
+  },
   'assistant:configure': (dw, p) => { if (dw.ghost) throw new Error('AI is disabled in Ghost Mode.'); return dw.assistant.configure(p); },
-  'assistant:ask': (dw, p) => { if (dw.ghost) throw new Error('AI is disabled in Ghost Mode.'); return dw.assistant.ask(dw.win.webContents.id, str(p.text, 24001)); },
+  'assistant:ask': (dw, p) => {
+    if (dw.ghost) throw new Error('AI is disabled in Ghost Mode.');
+    const token = dw.overlay.current?.token;
+    return dw.assistant.ask(dw.win.webContents.id, str(p.text, 24001), chunk => {
+      if (dw.overlay.kind === 'assistant' && dw.overlay.current?.token === token && !dw.overlay.webContents.isDestroyed()) dw.overlay.webContents.send('assistant:chunk', { token, chunk });
+    });
+  },
   'assistant:cancel': dw => { if (!dw.ghost) dw.assistant.cancel(dw.win.webContents.id); },
   'assistant:page': async dw => { if (dw.ghost) throw new Error('AI is disabled in Ghost Mode.'); const tab = dw.tabs.active; if (!tab || !/^https?:/.test(tab.url)) return ''; return tab.wc.executeJavaScript('document.body.innerText.slice(0, 16000)'); },
+  'assistant:tabs': async dw => {
+    if (dw.ghost) throw new Error('AI is disabled in Ghost Mode.');
+    const tabs = dw.tabs.list().filter(tab => /^https?:/.test(tab.wc.getURL())).slice(0, 4);
+    return Promise.all(tabs.map(async tab => ({ title: tab.title, url: tab.url, text: await tab.wc.executeJavaScript('(document.body?.innerText || "").slice(0, 3200)').catch(() => '') })));
+  },
   'integrations:show': dw => dw.showIntegrations(),
   'extensions:install': dw => { if (dw.ghost) throw new Error('Extensions are disabled in Ghost Mode.'); return dw.integrations.installExtension(dw.win); },
   'extensions:remove': (dw, p) => { if (dw.ghost) throw new Error('Extensions are disabled in Ghost Mode.'); return dw.integrations.removeExtension(str(p.id, 100)); },

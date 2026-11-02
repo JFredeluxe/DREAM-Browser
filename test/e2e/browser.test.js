@@ -70,9 +70,9 @@ test('DREAM real desktop milestone', { timeout: 180000 }, async t => {
         const a = globalThis.__dreamAssistant; const original = globalThis.fetch; const requests = [];
         globalThis.fetch = async (url, options) => { requests.push({ url, body: options?.body });
           if (url.endsWith('/api/tags')) return new Response(JSON.stringify({ models: [{ name: 'local-test' }] }));
-          if (url.endsWith('/api/chat')) return new Response(JSON.stringify({ message: { content: 'Local answer' } }));
+          if (url.endsWith('/api/chat')) return new Response(JSON.stringify({ message: { content: 'Local answer' } }), { headers: { 'content-type': 'application/json' } });
           if (url.endsWith('/models')) return new Response(JSON.stringify({ data: [{ id: 'test/cheap', context_length: 32000, pricing: { prompt: '0.0000001', completion: '0.0000002' } }] }));
-          return new Response(JSON.stringify({ model: 'test/cheap', choices: [{ message: { content: 'Cloud answer' } }] }));
+          return new Response(JSON.stringify({ model: 'test/cheap', choices: [{ message: { content: 'Cloud answer' } }] }), { headers: { 'content-type': 'application/json' } });
         };
         try {
           const local = await a.ask(991, 'explicit local question');

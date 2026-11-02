@@ -25,7 +25,7 @@ export class TabList {
   /** (Re)attach to a container. Switching orientation drops all elements; they re-enter without animation. */
   mount(container, axis) {
     if (this.container === container && this.axis === axis) return;
-    for (const it of this.items.values()) it.el.remove();
+    for (const it of this.items.values()) { it.grow.cancel(); it.fx.cancel(); it.fy.cancel(); it.el.remove(); }
     this.items.clear();
     this.container = container;
     this.axis = axis;
@@ -164,6 +164,7 @@ export class TabList {
 
   /** After a DOM change, spring every moved element from where it was to where it now is. */
   #flip(before, skip) {
+    const shifts = [];
     for (const [it, b] of before) {
       if (it === skip) continue;
       const r = it.el.getBoundingClientRect();
@@ -173,6 +174,10 @@ export class TabList {
       const dx = b.x - ax;
       const dy = b.y - ay;
       if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
+      shifts.push({ it, dx, dy });
+    }
+    // Measure all positions before scheduling writes to avoid layout churn.
+    for (const { it, dx, dy } of shifts) {
       if (this.axis === 'x') it.fx.from(dx, 0);
       else it.fy.from(dy, 0);
       if (this.axis === 'x') it.fy.set(0);

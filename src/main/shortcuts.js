@@ -15,6 +15,7 @@ export function commandForInput(input, platform = process.platform) {
   if (input.control && mac && key === 'Tab') return shift ? 'tab-prev' : 'tab-next';
 
   if (mod && !alt) {
+    if (shift && key === 'j') return 'assistant-show';
     if (key === 'n' && shift) return 'ghost-new';
     if (key === 't') return shift ? 'tab-reopen' : 'tab-new';
     if (key === 'w') return 'tab-close';

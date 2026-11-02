@@ -94,6 +94,15 @@ export function pageMenu(dw, tab, p) {
       { label: `Search ${SEARCH_ENGINES[engine].name} for “${short}”`, run: () => dw.openSearch(p.selectionText, tab) },
       SEP,
     );
+    if (!dw.ghost) {
+      const selected = p.selectionText.slice(0, 16000);
+      push(
+        { label: 'Summarize selection with DREAM', run: () => dw.showAssistant(`Summarize this selected text:\n\n${selected}`) },
+        { label: 'Translate selection with DREAM', run: () => dw.showAssistant(`Translate this selected text into: [choose language]\n\n${selected}`) },
+        { label: 'Rewrite selection with DREAM', run: () => dw.showAssistant(`Rewrite this selected text:\n\n${selected}`) },
+        SEP,
+      );
+    }
   }
   if (!p.linkURL && !p.isEditable && !p.selectionText) {
     const nav = wc.navigationHistory;

@@ -4,7 +4,7 @@ permissions:
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, ai-animation-polish]
 jobs:
   unit:
     strategy:
@@ -55,6 +55,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
   macos-package:
+    if: github.ref == 'refs/heads/main'
     needs: windows-package
     runs-on: macos-latest
     env:

@@ -4,7 +4,8 @@ import { renderAnswer } from './answer.js';
 import { SEARCH_ENGINES } from '../../shared/url.js';
 
 const root = $('#root');
-let current = null, state = null, transcript = [];
+let current = null, state = null, transcript = [], streamSink = null;
+window.dream.on('assistant:chunk', data => { if (current?.kind === 'assistant' && current.token === data.token) streamSink?.(data.chunk); });
 const rpc = (method, data) => window.dream.call(method, data);
 const action = (id, value) => rpc('overlay:action', { token: current?.token, id, value });
 const close = () => { rpc('assistant:cancel').catch(() => {}); return rpc('overlay:dismiss'); };
@@ -91,8 +92,9 @@ function assistant() {
   const details = h('details', { class: 'ai-settings' }, h('summary', {}, 'Connections & cost limits'));
   const draft = { ...status };
   select(details, 'Choose a route', status.strategy, [['auto', 'Smart · try Ollama, then approved cloud'], ['local', 'Local · Ollama only'], ['cloud', 'Cloud · OpenRouter only']], value => draft.strategy = value);
+  select(details, 'Cloud routing', status.quality, [['economy', 'Economy'], ['balanced', 'Balanced'], ['quality', 'Quality']], value => draft.quality = value);
   toggle(details, 'Allow cloud requests', status.allowCloud, value => draft.allowCloud = value);
-  details.append(note('When cloud is used, your recent conversation is sent to OpenRouter. Cloud is optional.'));
+  details.append(note('When cloud is used, your recent conversation is sent to OpenRouter. Model quality is estimated; pin a model below for a specific choice.'));
   const localStatus = h('span', { class: 'note', role: 'status' }, 'Use a model installed in Ollama.');
   const localModel = field(details, 'Ollama model', h('input', { class: 'text-input', value: status.ollamaModel, placeholder: 'Automatic · first installed model', oninput: e => draft.ollamaModel = e.target.value }));
   details.append(h('div', { class: 'connection-check' }, button('Check Ollama', safe(async () => {
@@ -104,15 +106,16 @@ function assistant() {
   const key = field(details, 'OpenRouter key', h('input', { type: 'password', class: 'text-input', autocomplete: 'off', placeholder: status.hasKey ? 'Saved securely · leave blank to keep' : 'Paste your API key' }));
   field(details, 'Cloud model', h('input', { class: 'text-input', value: status.model, placeholder: 'Automatic · lowest eligible cost', oninput: e => draft.model = e.target.value }));
   const limits = h('div', { class: 'cost-grid' });
-  for (const [name, label, min, max, step] of [['maxRequestUSD', 'Per request · USD', .001, 1, .001], ['dailyBudgetUSD', 'Per day · USD', .01, 10, .01], ['maxTokens', 'Answer length · tokens', 128, 4096, 1]]) field(limits, label, h('input', { type: 'number', class: 'text-input', value: status[name], min, max, step, oninput: e => draft[name] = Number(e.target.value) }));
+  for (const [name, label, min, max, step] of [['maxRequestUSD', 'Per request · USD', .001, 1, .001], ['dailyBudgetUSD', 'Per day · USD', .01, 10, .01], ['monthlyBudgetUSD', 'Per month · USD', .01, 300, .01], ['maxTokens', 'Answer length · tokens', 128, 4096, 1]]) field(limits, label, h('input', { type: 'number', class: 'text-input', value: status[name], min, max, step, oninput: e => draft[name] = Number(e.target.value) }));
   details.append(limits);
   const saved = h('span', { class: 'note', role: 'status' });
   details.append(h('div', { class: 'actions' }, button('Forget key', safe(async () => { await rpc('assistant:configure', { clearKey: true }); saved.textContent = 'Key removed.'; }), 'link-btn danger'), button('Save connections', safe(async () => { const result = await rpc('assistant:configure', { ...draft, apiKey: key.value }); key.value = ''; Object.assign(status, result); saved.textContent = 'Saved. You’re ready to ask.'; chips.children[1].textContent = result.allowCloud ? 'Cloud allowed' : 'Cloud off'; }), 'btn primary')), saved,
-    note(`Reserved today: $${status.reservedUSD.toFixed(4)}. Estimates reset at midnight UTC. Provider-side spending limits are separate.`));
+    note(`Reserved today: $${status.reservedUSD.toFixed(4)} · this month: $${status.monthlyReservedUSD.toFixed(4)}. Estimates reset in UTC. Provider-side spending limits are separate.`));
   panel.append(details);
   const log = h('div', { class: 'chat-log', 'aria-live': 'polite', role: 'log', 'aria-label': 'Conversation' });
   const prompt = h('textarea', { class: 'prompt', rows: 3, maxLength: 24000, placeholder: 'What’s on your mind?', 'aria-label': 'Ask DREAM Assistant' });
-  let busy = false;
+  if (current.data.draft) prompt.value = current.data.draft;
+  let busy = false, preparing = false, stopRequested = false;
   const draw = () => {
     log.replaceChildren();
     if (!transcript.length) {
@@ -132,21 +135,59 @@ function assistant() {
   };
   panel.append(log); draw();
   const send = button('Send ↗', null, 'btn primary'); send.type = 'submit';
-  const stop = button('Stop', () => rpc('assistant:cancel'), 'link-btn'); stop.hidden = true;
+  const stop = button('Stop', () => { stopRequested = true; return rpc('assistant:cancel'); }, 'link-btn'); stop.hidden = true;
   const route = h('div', { class: 'route-note', role: 'status' }, 'Local first. Your choice, every time.');
   const attach = button('Add this page', safe(async () => {
     const text = await rpc('assistant:page');
     if (!text.trim()) { route.textContent = 'Open a web page first.'; return; }
     prompt.value = (prompt.value + '\n\nPage text (untrusted reference):\n' + text).slice(0, 24000); prompt.focus(); route.textContent = 'Page text added to your draft. Review it before sending.';
   }), 'link-btn');
+  const attachTabs = button('Add open tabs', safe(async () => {
+    if (!confirm('Add text from up to four open web pages to your draft? Review it before sending.')) return;
+    const tabs = await rpc('assistant:tabs');
+    if (!tabs.length) { route.textContent = 'Open web pages first.'; return; }
+    const context = tabs.map(tab => `Page: ${tab.title}\nURL: ${tab.url}\n${tab.text}`).join('\n\n');
+    prompt.value = (prompt.value + '\n\nOpen pages (untrusted reference):\n' + context).slice(0, 24000);
+    prompt.focus(); route.textContent = `${tabs.length} pages added to your draft. Review them before sending.`;
+  }), 'link-btn');
   const form = h('form', { class: 'composer', onsubmit: async event => {
-    event.preventDefault(); if (!prompt.value.trim() || busy) return;
-    const text = prompt.value; prompt.value = ''; busy = true; send.disabled = true; stop.hidden = false; attach.disabled = true;
+    event.preventDefault(); if (!prompt.value.trim() || busy || preparing) return;
+    const requestToken = current?.token;
+    let text = prompt.value;
+    preparing = true;
+    try {
+    if (/^\s*(?:summari[sz]e|explain|describe) (?:this|this page)[?.!]?\s*$/i.test(text)) {
+      if (!confirm('Include the current page text in this request?')) return;
+      const page = await rpc('assistant:page');
+      if (!page.trim()) { route.textContent = 'Open a web page first.'; return; }
+      text = `${text}\n\nPage text (untrusted reference):\n${page}`.slice(0, 24000);
+    } else if (/^\s*compare (?:these|my|the open) tabs[?.!]?\s*$/i.test(text)) {
+      if (!confirm('Include text from up to four open pages in this request?')) return;
+      const tabs = await rpc('assistant:tabs');
+      if (tabs.length < 2) { route.textContent = 'Open at least two web pages first.'; return; }
+      text = `${text}\n\nOpen pages (untrusted reference):\n${tabs.map(tab => `Page: ${tab.title}\nURL: ${tab.url}\n${tab.text}`).join('\n\n')}`.slice(0, 24000);
+    }
+    } catch (error) { route.textContent = error.message; return; }
+    finally { preparing = false; }
+    if (current?.kind !== 'assistant' || current.token !== requestToken) return;
+    prompt.value = ''; busy = true; stopRequested = false; send.disabled = true; stop.hidden = false; attach.disabled = true; attachTabs.disabled = true;
     route.textContent = 'Finding the right route…'; transcript.push({ role: 'user', label: 'YOU', text }); draw();
-    try { const answer = await rpc('assistant:ask', { text }); transcript.push({ role: 'assistant', label: answer.route, text: answer.text }); route.textContent = answer.reservedUSD ? `${answer.route} · reserved $${answer.reservedUSD.toFixed(4)}` : `${answer.route} · no OpenRouter charge`; }
+    let streamed = '', frame = 0, streamNode;
+    streamSink = chunk => {
+      streamed += chunk;
+      if (!streamNode) { log.querySelector('.thinking')?.remove(); streamNode = h('div', { class: 'message assistant streaming', 'aria-live': 'off' }); log.append(streamNode); }
+      if (!frame) frame = requestAnimationFrame(() => { frame = 0; const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 80; streamNode.textContent = streamed; if (nearBottom) log.scrollTop = log.scrollHeight; });
+    };
+    try {
+      const local = await rpc('assistant:local', { text });
+      if (stopRequested || current?.kind !== 'assistant' || current.token !== requestToken) throw new Error('Aborted');
+      const answer = local ? { ...local, route: 'DREAM · on this device', reservedUSD: 0 } : await rpc('assistant:ask', { text });
+      transcript.push({ role: 'assistant', label: answer.route, text: answer.text });
+      route.textContent = answer.reservedUSD ? `${answer.route} · estimated up to $${answer.reservedUSD.toFixed(4)}` : `${answer.route} · no OpenRouter charge`;
+    }
     catch (error) { transcript.push({ role: 'error', label: 'LET’S TRY AGAIN', text: /abort/i.test(error.message) ? 'Stopped. Your draft is ready when you are.' : error.message }); prompt.value = text; route.textContent = 'Your message has been kept in the draft.'; }
-    finally { busy = false; send.disabled = false; stop.hidden = true; attach.disabled = false; draw(); prompt.focus(); }
-  } }, prompt, h('div', { class: 'composer-actions' }, attach, h('span', { class: 'keyboard-hint' }, 'Ctrl + Enter to send'), stop, send));
+    finally { streamSink = null; if (frame) cancelAnimationFrame(frame); busy = false; send.disabled = false; stop.hidden = true; attach.disabled = false; attachTabs.disabled = false; draw(); prompt.focus(); }
+  } }, prompt, h('div', { class: 'composer-actions' }, attach, attachTabs, h('span', { class: 'keyboard-hint' }, 'Ctrl + Enter to send'), stop, send));
   prompt.addEventListener('keydown', event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); form.requestSubmit(); } });
   panel.append(form, route, h('div', { class: 'assistant-foot' }, note('Only the messages you send are used. Check important answers.'), button('New conversation', safe(async () => { await rpc('assistant:clear'); transcript = []; draw(); prompt.focus(); }), 'link-btn')));
 }
@@ -176,7 +217,7 @@ function render() {
 }
 window.dream.on('overlay:show', data => { current = data; render(); });
 window.dream.on('overlay:update', data => { if (current?.token !== data.token) return; current.data = { ...current.data, ...data.data }; render(); });
-window.dream.on('overlay:hide', data => { root.classList.add('leaving'); if (current?.kind === 'assistant') rpc('assistant:cancel').catch(() => {}); setTimeout(() => rpc('overlay:hidden', { token: data.token }), 110); });
+window.dream.on('overlay:hide', data => { if (current?.token !== data.token) return; root.classList.add('leaving'); if (current?.kind === 'assistant') rpc('assistant:cancel').catch(() => {}); current = null; streamSink = null; setTimeout(() => rpc('overlay:hidden', { token: data.token }), 110); });
 window.dream.on('state', data => { state = data; document.documentElement.dataset.theme = data.effectiveTheme ?? data.settings.theme; document.documentElement.style.setProperty('--accent', data.accents[data.settings.accent] ?? data.settings.accent); if (current?.kind === 'bookmarks') render(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
 state = await rpc('state:get');

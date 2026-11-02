@@ -10,8 +10,11 @@ test('the Web Store bridge requires its exact origin', () => {
   // site, and the main process must reject requests from one independently.
   const preload = readFileSync(require.resolve('electron-chrome-web-store/preload'), 'utf8');
   const browser = readFileSync(require.resolve('electron-chrome-web-store'), 'utf8');
+  const browserModule = readFileSync(new URL(import.meta.resolve('electron-chrome-web-store')), 'utf8');
   assert.match(preload, /location\.origin === "https:\/\/chromewebstore\.google\.com"/);
   assert.match(browser, /senderOrigin !== WEBSTORE_URL/);
+  assert.match(browserModule, /senderOrigin !== WEBSTORE_URL/);
   assert.doesNotMatch(preload, /location\.href\.startsWith\("https:\/\/chromewebstore\.google\.com"\)/);
   assert.doesNotMatch(browser, /senderOrigin\.startsWith\(WEBSTORE_URL\)/);
+  assert.doesNotMatch(browserModule, /senderOrigin\.startsWith\(WEBSTORE_URL\)/);
 });

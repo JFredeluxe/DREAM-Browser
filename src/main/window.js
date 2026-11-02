@@ -198,6 +198,7 @@ export class DreamWindow {
       case 'ghost-new': return this.openGhost();
       case 'bookmark-toggle': return this.toggleBookmark();
       case 'bookmarks-show': return this.showBookmarks();
+      case 'assistant-show': return this.ghost ? undefined : this.showAssistant();
       case 'customize-show': return this.showCustomize();
       case 'sidebar-toggle': return this.settings.update({ sidebarVisible: !this.settings.all.sidebarVisible });
       case 'zoom-in': return t.zoom(1);
@@ -315,9 +316,9 @@ export class DreamWindow {
     this.#showMenu(appMenu(this), this.anchors.menu, 'bottom-end');
   }
 
-  showAssistant() {
+  showAssistant(draft = '') {
     if (this.ghost) throw new Error('DREAM AI is disabled in Ghost Mode.');
-    this.overlay.show({ kind: 'assistant', focus: true, data: { status: this.assistant.status() } });
+    this.overlay.show({ kind: 'assistant', focus: true, data: { status: this.assistant.status(), draft: String(draft).slice(0, 24000) } });
   }
 
   showIntegrations() {
@@ -391,6 +392,7 @@ export class DreamWindow {
   }
 
   omniboxSubmit(text) {
+    if (!this.ghost && /^@ai\s+/i.test(text)) { this.#closeOmnibox(); return this.showAssistant(text.replace(/^@ai\s+/i, '')); }
     const picked = this.overlay.kind === 'omnibox' ? this.omni.suggestions[this.omni.selected] : null;
     this.go(picked && this.omni.selected > 0 ? picked.url : text);
   }
