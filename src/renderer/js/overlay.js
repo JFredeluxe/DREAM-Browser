@@ -185,7 +185,7 @@ function assistant() {
       transcript.push({ role: 'assistant', label: answer.route, text: answer.text });
       route.textContent = answer.reservedUSD ? `${answer.route} · estimated up to $${answer.reservedUSD.toFixed(4)}` : `${answer.route} · no OpenRouter charge`;
     }
-    catch (error) { transcript.push({ role: 'error', label: 'LET’S TRY AGAIN', text: /abort/i.test(error.message) ? 'Stopped. Your draft is ready when you are.' : error.message }); prompt.value = text; route.textContent = 'Your message has been kept in the draft.'; }
+    catch (error) { if (streamed) transcript.push({ role: 'assistant', label: 'PARTIAL ANSWER', text: streamed }); transcript.push({ role: 'error', label: 'LET’S TRY AGAIN', text: /abort/i.test(error.message) ? 'Stopped. Your draft is ready when you are.' : error.message }); prompt.value = text; route.textContent = 'Your message has been kept in the draft.'; }
     finally { streamSink = null; if (frame) cancelAnimationFrame(frame); busy = false; send.disabled = false; stop.hidden = true; attach.disabled = false; attachTabs.disabled = false; draw(); prompt.focus(); }
   } }, prompt, h('div', { class: 'composer-actions' }, attach, attachTabs, h('span', { class: 'keyboard-hint' }, 'Ctrl + Enter to send'), stop, send));
   prompt.addEventListener('keydown', event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); form.requestSubmit(); } });

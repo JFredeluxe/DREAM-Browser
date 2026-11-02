@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 
 let onMotionChange;
 const motion = { matches: false, addEventListener: (_name, handler) => { onMotionChange = handler; } };
@@ -27,4 +29,11 @@ test('many rapidly retargeted tab springs settle at their latest positions', () 
   for (let turn = 0; turn < 20; turn++) for (let i = 0; i < springs.length; i++) springs[i].to(i + turn);
   for (let frame = 0; frame < 180; frame++) for (const spring of springs) spring.step(1 / 120);
   for (let i = 0; i < springs.length; i++) assert.equal(springs[i].value, i + 19);
+});
+test('browser styles contain no CSS gradients', () => {
+  const walk = directory => fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+    const file = path.join(directory, entry.name);
+    return entry.isDirectory() ? walk(file) : file.endsWith('.css') ? [file] : [];
+  });
+  for (const file of [...walk('src/renderer'), ...walk('src/pages')]) assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /(?:linear|radial|conic)-gradient\s*\(/i, file);
 });

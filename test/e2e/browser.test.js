@@ -126,15 +126,16 @@ test('DREAM real desktop milestone', { timeout: 180000 }, async t => {
           const encoder = new TextEncoder();
           return new Response(new ReadableStream({ start(controller) {
             controller.enqueue(encoder.encode('{"message":{"content":"First"},"done":false}\n'));
-            setTimeout(() => { controller.enqueue(encoder.encode('{"message":{"content":" second"},"done":true}\n')); controller.close(); }, 500);
+            setTimeout(() => { controller.enqueue(encoder.encode('{"message":{"content":" second"},"done":true}\n')); controller.close(); }, 3000);
           } }), { headers: { 'content-type': 'application/x-ndjson' } });
         };
       });
       try {
+        await overlay.evaluate(() => { window.__streamChunks = []; window.dream.on('assistant:chunk', data => window.__streamChunks.push(data)); });
         await overlay.getByLabel('Ask DREAM Assistant').fill('Say hello');
         await overlay.getByRole('button', { name: 'Send ↗' }).click();
         try { await wait(async () => await overlay.locator('.streaming').count() && (await overlay.locator('.streaming').textContent()).includes('First'), 'Streaming text did not appear'); }
-        catch (error) { throw new Error(`${error.message}; route: ${await overlay.locator('.route-note').innerText()}; conversation: ${await overlay.locator('.chat-log').innerText()}`); }
+        catch (error) { throw new Error(`${error.message}; route: ${await overlay.locator('.route-note').innerText()}; chunks: ${JSON.stringify(await overlay.evaluate(() => window.__streamChunks))}; conversation: ${await overlay.locator('.chat-log').innerText()}`); }
         await overlay.getByText('First second').waitFor();
       } finally { await electron.evaluate(() => globalThis.__restoreAiFetch()); }
       await overlay.getByRole('button', { name: 'Close', exact: true }).click();
