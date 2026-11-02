@@ -43,7 +43,7 @@ jobs:
       - run: pnpm dist
       - run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Copy-Item ../windows/DREAM-Browser-Setup-0.1.1.exe dist/
+          Copy-Item ../windows/DREAM-Browser-Setup-0.1.2.exe dist/
       - uses: actions/upload-artifact@v4
         with:
           name: DREAM-Windows
@@ -54,9 +54,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          gh release view v0.1.1-preview 2>$null
+          gh release view v0.1.2-preview 2>$null
           if ($LASTEXITCODE -ne 0) {
-            gh release create v0.1.1-preview dist/DREAM-Browser-Setup-0.1.1.exe --target ${{ github.sha }} --title "DREAM Browser 0.1.1 preview" --notes "Unsigned Windows preview with a stricter Chrome Web Store origin check. Chrome extension compatibility is partial; Android is not yet available." --prerelease
+            gh release create v0.1.2-preview dist/DREAM-Browser-Setup-0.1.2.exe --target ${{ github.sha }} --title "DREAM Browser 0.1.2 preview" --notes "Unsigned Windows preview with assistant streaming, estimated budget limits, explicit page context and animation refinements. Extension compatibility remains partial; Android is not yet available." --prerelease
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
   macos-package:
@@ -90,5 +90,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload v0.1.1-preview dist/*.dmg --clobber
-          gh release edit v0.1.1-preview --notes 'Unsigned Windows and macOS previews with a stricter Chrome Web Store origin check. macOS builds are not notarized and may be blocked by Gatekeeper. Chrome extension compatibility is partial; Android is not yet available.'
+          gh release upload v0.1.2-preview dist/*.dmg --clobber
+          gh release edit v0.1.2-preview --notes 'Unsigned Windows and macOS previews with assistant streaming, estimated budget limits, explicit page context and animation refinements. macOS builds are not notarized and may be blocked by Gatekeeper. Extension compatibility remains partial; Android is not yet available.'
