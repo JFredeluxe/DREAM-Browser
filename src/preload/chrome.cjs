@@ -4,7 +4,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 require('electron-chrome-extensions/browser-action').injectBrowserAction();
 
-const EVENTS = new Set(['state', 'ui:notice', 'ui:focus-omnibox', 'overlay:show', 'overlay:update', 'overlay:hide', 'assistant:chunk']);
+const EVENTS = new Set(['state', 'ui:notice', 'ui:focus-omnibox', 'overlay:show', 'overlay:update', 'overlay:hide', 'assistant:chunk', 'assistant:route']);
 
 contextBridge.exposeInMainWorld('dream', {
   call: (method, payload) => ipcRenderer.invoke('rpc', String(method), payload),

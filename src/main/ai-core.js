@@ -49,7 +49,7 @@ export class Assistant {
       return { available: true, models: (data.models ?? []).map(model => model.name).filter(name => typeof name === 'string').slice(0, 100) };
     } catch { return { available: false, models: [] }; }
   }
-  async ask(windowId, text, onText = () => {}) {
+  async ask(windowId, text, onText = () => {}, onRoute = () => {}) {
     if (typeof text !== 'string' || !text.trim() || text.length > 24000) throw new Error('Enter a prompt up to 24,000 characters.');
     if (this.pending.has(windowId)) throw new Error('A request is already running.');
     const controller = new AbortController(); this.pending.set(windowId, controller);
@@ -72,6 +72,7 @@ export class Assistant {
           const tags = await this.json('http://127.0.0.1:11434/api/tags', { signal: localSignal });
           const model = settings.ollamaModel || tags.models?.[0]?.name;
           if (!model) throw new Error('No local model is installed in Ollama.');
+          onRoute({ route: `Ollama · ${model}`, reservedUSD: 0 });
           const answer = await this.stream('http://127.0.0.1:11434/api/chat', { method: 'POST', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model, messages, stream: true, options: { num_predict: settings.maxTokens } }) }, 'ollama', part => { received = true; onText(part); });
           return complete({ text: answer, route: `Ollama · ${model}`, reservedUSD: 0 });
         } catch (error) {
@@ -94,6 +95,7 @@ export class Assistant {
         // Reserve synchronously before awaiting so parallel windows cannot reuse a budget.
         requestReserved += choice.reserve;
         this.store.data.reserved += choice.reserve; this.store.data.monthlyReserved += choice.reserve; this.store.touch(); this.store.flush();
+        onRoute({ route: `OpenRouter · ${choice.id}`, reservedUSD: requestReserved });
         let received = false;
         try {
           const answer = await this.stream('https://openrouter.ai/api/v1/chat/completions', {
@@ -104,7 +106,7 @@ export class Assistant {
           }, 'openrouter', part => { received = true; onText(part); });
           return complete({ text: answer, route: `OpenRouter · ${choice.id}`, reservedUSD: requestReserved });
         } catch (error) {
-          if (signal.aborted || received || currentSettings.model || attempt === 2 || !(error.status === 429 || error.status >= 500)) throw error;
+          if (signal.aborted || received || currentSettings.model || attempt === 2 || !([404, 408, 422, 429].includes(error.status) || error.status >= 500)) throw error;
           excluded.push(choice.id);
         }
       }

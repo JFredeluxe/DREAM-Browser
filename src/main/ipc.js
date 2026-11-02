@@ -68,6 +68,8 @@ const METHODS = {
     const token = dw.overlay.current?.token;
     return dw.assistant.ask(dw.win.webContents.id, str(p.text, 24001), chunk => {
       if (dw.overlay.kind === 'assistant' && dw.overlay.current?.token === token && !dw.overlay.webContents.isDestroyed()) dw.overlay.webContents.send('assistant:chunk', { token, chunk });
+    }, route => {
+      if (dw.overlay.kind === 'assistant' && dw.overlay.current?.token === token && !dw.overlay.webContents.isDestroyed()) dw.overlay.webContents.send('assistant:route', { token, ...route });
     });
   },
   'assistant:cancel': dw => { if (!dw.ghost) dw.assistant.cancel(dw.win.webContents.id); },

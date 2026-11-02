@@ -4,8 +4,9 @@ import { renderAnswer } from './answer.js';
 import { SEARCH_ENGINES } from '../../shared/url.js';
 
 const root = $('#root');
-let current = null, state = null, transcript = [], streamSink = null;
+let current = null, state = null, transcript = [], streamSink = null, routeSink = null;
 window.dream.on('assistant:chunk', data => { if (current?.kind === 'assistant' && current.token === data.token) streamSink?.(data.chunk); });
+window.dream.on('assistant:route', data => { if (current?.kind === 'assistant' && current.token === data.token) routeSink?.(data); });
 const rpc = (method, data) => window.dream.call(method, data);
 const action = (id, value) => rpc('overlay:action', { token: current?.token, id, value });
 const close = () => { rpc('assistant:cancel').catch(() => {}); return rpc('overlay:dismiss'); };
@@ -137,6 +138,7 @@ function assistant() {
   const send = button('Send ↗', null, 'btn primary'); send.type = 'submit';
   const stop = button('Stop', () => { stopRequested = true; return rpc('assistant:cancel'); }, 'link-btn'); stop.hidden = true;
   const route = h('div', { class: 'route-note', role: 'status' }, 'Local first. Your choice, every time.');
+  routeSink = data => { route.textContent = data.reservedUSD ? `${data.route} · estimated up to $${data.reservedUSD.toFixed(4)}` : `${data.route} · no OpenRouter charge`; };
   const attach = button('Add this page', safe(async () => {
     const text = await rpc('assistant:page');
     if (!text.trim()) { route.textContent = 'Open a web page first.'; return; }
@@ -217,7 +219,7 @@ function render() {
 }
 window.dream.on('overlay:show', data => { current = data; render(); });
 window.dream.on('overlay:update', data => { if (current?.token !== data.token) return; current.data = { ...current.data, ...data.data }; render(); });
-window.dream.on('overlay:hide', data => { if (current?.token !== data.token) return; root.classList.add('leaving'); if (current?.kind === 'assistant') rpc('assistant:cancel').catch(() => {}); current = null; streamSink = null; setTimeout(() => rpc('overlay:hidden', { token: data.token }), 110); });
+window.dream.on('overlay:hide', data => { if (current?.token !== data.token) return; root.classList.add('leaving'); if (current?.kind === 'assistant') rpc('assistant:cancel').catch(() => {}); current = null; streamSink = null; routeSink = null; setTimeout(() => rpc('overlay:hidden', { token: data.token }), 110); });
 window.dream.on('state', data => { state = data; document.documentElement.dataset.theme = data.effectiveTheme ?? data.settings.theme; document.documentElement.style.setProperty('--accent', data.accents[data.settings.accent] ?? data.settings.accent); if (current?.kind === 'bookmarks') render(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
 state = await rpc('state:get');

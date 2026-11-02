@@ -136,6 +136,7 @@ test('DREAM real desktop milestone', { timeout: 180000 }, async t => {
         await overlay.getByRole('button', { name: 'Send ↗' }).click();
         try { await wait(async () => await overlay.locator('.streaming').count() && (await overlay.locator('.streaming').textContent()).includes('First'), 'Streaming text did not appear'); }
         catch (error) { throw new Error(`${error.message}; route: ${await overlay.locator('.route-note').innerText()}; chunks: ${JSON.stringify(await overlay.evaluate(() => window.__streamChunks))}; conversation: ${await overlay.locator('.chat-log').innerText()}`); }
+        assert.match(await overlay.locator('.route-note').innerText(), /Ollama · test/);
         await overlay.getByText('First second').waitFor();
       } finally { await electron.evaluate(() => globalThis.__restoreAiFetch()); }
       await overlay.getByRole('button', { name: 'Close', exact: true }).click();

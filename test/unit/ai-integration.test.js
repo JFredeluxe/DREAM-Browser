@@ -19,15 +19,16 @@ function setup(t) {
   return ai;
 }
 test('fallback streams from the next model and reserves both attempts', async t => {
-  const ai = setup(t); const called = []; const chunks = [];
+  const ai = setup(t); const called = []; const chunks = []; const routes = [];
   globalThis.fetch = async (url, options) => {
     if (url.endsWith('/models')) return json({ data: [model('a'), model('b')] });
     called.push(JSON.parse(options.body).model);
     return called.length === 1 ? new Response('', { status: 503 }) : stream('hello');
   };
-  const result = await ai.ask(1, 'hello', chunk => chunks.push(chunk));
+  const result = await ai.ask(1, 'hello', chunk => chunks.push(chunk), route => routes.push(route));
   assert.deepEqual(called, ['a', 'b']); assert.deepEqual(chunks, ['hello']);
   assert.equal(result.text, 'hello'); assert.equal(ai.status().monthlyReservedUSD, result.reservedUSD);
+  assert.deepEqual(routes.map(route => route.route), ['OpenRouter · a', 'OpenRouter · b']);
   assert.ok(result.reservedUSD > 0);
 });
 test('cancellation stops the active request without falling back', async t => {
@@ -63,4 +64,12 @@ test('simultaneous windows cannot reserve the same monthly budget', async t => {
   const first = ai.ask(1, 'hello'); await ready;
   await assert.rejects(ai.ask(2, 'hello'), /cost limits/);
   release(); assert.equal((await first).text, 'done');
+});
+test('monthly reservations survive an application restart', async t => {
+  const ai = setup(t);
+  globalThis.fetch = async url => url.endsWith('/models') ? json({ data: [model('a')] }) : stream('done');
+  const answer = await ai.ask(1, 'hello');
+  ai.flush();
+  const restored = new Assistant(path.dirname(ai.secretFile), secure);
+  assert.equal(restored.status().monthlyReservedUSD, answer.reservedUSD);
 });
