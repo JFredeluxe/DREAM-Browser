@@ -98,6 +98,17 @@ test('DREAM real desktop milestone', { timeout: 180000 }, async t => {
       await electron.evaluate((_e, url) => globalThis.__dream.go(url), url);
       await wait(() => electron.evaluate(() => globalThis.__dream.tabs.active.wc.executeJavaScript('document.documentElement.dataset.dreamExtension === "working"')), 'Extension did not execute');
     });
+    await t.test('rapid tab changes remain responsive with reduced motion', async () => {
+      await chrome.emulateMedia({ reducedMotion: 'reduce' });
+      const result = await electron.evaluate(() => {
+        const tabs = globalThis.__dream.tabs; const before = tabs.list().length;
+        const created = Array.from({ length: 25 }, () => tabs.create({ url: 'about:blank', active: false }));
+        for (const tab of created) tabs.close(tab.id);
+        return { before, after: tabs.list().length };
+      });
+      assert.equal(result.after, result.before);
+      await chrome.emulateMedia({ reducedMotion: 'no-preference' });
+    });
     await t.test('internal settings and assistant panels render without errors', async () => {
       await electron.evaluate(() => { const dw = globalThis.__dream; dw.newTab(); dw.showCustomize(); });
       const overlay = electron.windows().find(p => p.url().includes('overlay.html'));
@@ -108,6 +119,23 @@ test('DREAM real desktop milestone', { timeout: 180000 }, async t => {
       await overlay.getByRole('heading', { name: 'Ask DREAM' }).waitFor();
       await overlay.getByText('Connections & cost limits').click();
       assert.equal(await overlay.locator('input[type=password]').count(), 1);
+      await electron.evaluate(() => {
+        const original = globalThis.fetch; globalThis.__restoreAiFetch = () => { globalThis.fetch = original; };
+        globalThis.fetch = async url => {
+          if (url.endsWith('/api/tags')) return new Response(JSON.stringify({ models: [{ name: 'test' }] }));
+          const encoder = new TextEncoder();
+          return new Response(new ReadableStream({ start(controller) {
+            controller.enqueue(encoder.encode('{"message":{"content":"First"},"done":false}\n'));
+            setTimeout(() => { controller.enqueue(encoder.encode('{"message":{"content":" second"},"done":true}\n')); controller.close(); }, 500);
+          } }), { headers: { 'content-type': 'application/x-ndjson' } });
+        };
+      });
+      try {
+        await overlay.getByLabel('Ask DREAM Assistant').fill('Say hello');
+        await overlay.getByRole('button', { name: 'Send ↗' }).click();
+        await wait(async () => await overlay.locator('.streaming').count() && (await overlay.locator('.streaming').textContent()).includes('First'), 'Streaming text did not appear');
+        await overlay.getByText('First second').waitFor();
+      } finally { await electron.evaluate(() => globalThis.__restoreAiFetch()); }
       await overlay.getByRole('button', { name: 'Close', exact: true }).click();
       await wait(() => electron.evaluate(() => !globalThis.__dream.overlay.view.getVisible()), 'Assistant did not close');
       const image = await electron.evaluate(async () => (await globalThis.__dream.win.capturePage()).toPNG().toString('base64'));

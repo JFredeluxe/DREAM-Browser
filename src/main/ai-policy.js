@@ -6,7 +6,7 @@ export function cleanAiSettings(patch) {
     if (key === 'quality' && ['economy', 'balanced', 'quality'].includes(value)) out[key] = value;
     if (key === 'allowCloud' && typeof value === 'boolean') out[key] = value;
     if (['model', 'ollamaModel'].includes(key) && typeof value === 'string' && value.length <= 160) out[key] = value.trim();
-    const bounds = { maxRequestUSD: [0.001, 1], dailyBudgetUSD: [0.01, 10], monthlyBudgetUSD: [0.01, 300], maxTokens: [128, 4096] }[key];
+    const bounds = { maxRequestUSD: [0, 1], dailyBudgetUSD: [0, 10], monthlyBudgetUSD: [0, 300], maxTokens: [128, 4096] }[key];
     if (bounds && typeof value === 'number' && Number.isFinite(value)) out[key] = Math.max(bounds[0], Math.min(bounds[1], value));
   }
   return out;

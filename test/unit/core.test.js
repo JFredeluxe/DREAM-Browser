@@ -20,7 +20,7 @@ test('address resolution distinguishes hosts, searches, local servers and unsafe
 });
 test('settings reject inherited properties and invalid values', () => {
   assert.deepEqual(sanitizeSettings({ theme: 'wrong', searchEngine: 'toString', accent: '__proto__', saveHistory: 'yes', density: 'compact' }), { density: 'compact' });
-  assert.deepEqual(cleanAiSettings({ strategy: 'evil', allowCloud: 'yes', maxRequestUSD: -1 }), { maxRequestUSD: .001 });
+  assert.deepEqual(cleanAiSettings({ strategy: 'evil', allowCloud: 'yes', maxRequestUSD: -1 }), { maxRequestUSD: 0 });
 });
 test('profile data survives restart and corrupt files are preserved', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dream-unit-'));

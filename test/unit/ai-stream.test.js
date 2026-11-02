@@ -25,6 +25,7 @@ test('monthly and per-request reservations both constrain model selection', () =
   const settings = { ...AI_DEFAULTS, monthlyBudgetUSD: .01, maxRequestUSD: .01 };
   assert.ok(chooseCloudModel(models, 'hello', settings, 0, 0).reserve > 0);
   assert.throws(() => chooseCloudModel(models, 'hello', settings, 0, .01), /cost limits/);
+  assert.throws(() => chooseCloudModel(models, 'hello', { ...settings, monthlyBudgetUSD: 0 }), /cost limits/);
   for (const invalid of [null, '', undefined]) {
     assert.throws(() => chooseCloudModel([{ ...models[0], pricing: { prompt: invalid, completion: 0 } }], 'hello', settings), /cost limits/);
   }
