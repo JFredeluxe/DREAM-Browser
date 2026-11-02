@@ -70,6 +70,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:preload
       - run: node --test test/e2e/browser.test.js
+      - run: sips -z 1024 1024 build/icon.png
       - run: pnpm exec electron-builder --mac dmg --x64 --arm64 --publish never
       - run: mkdir -p dist && cp ../windows/*.dmg dist/
       - uses: actions/upload-artifact@v4
