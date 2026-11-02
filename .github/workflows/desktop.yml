@@ -54,4 +54,34 @@ jobs:
             gh release create v0.1.0-preview dist/DREAM-Browser-Setup-0.1.0.exe --target ${{ github.sha }} --title "DREAM Browser 0.1.0 preview" --notes "Unsigned Windows preview. Chrome extension compatibility is partial; Android is not yet available." --prerelease
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
+  macos-package:
+    runs-on: macos-latest
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:preload
+      - run: node --test test/e2e/browser.test.js
+      - run: pnpm exec electron-builder --mac dmg --x64 --arm64 --publish never
+      - run: mkdir -p dist && cp ../windows/*.dmg dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DREAM-macOS
+          path: dist/*.dmg
+          if-no-files-found: error
+      - name: Publish macOS preview
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload v0.1.0-preview dist/*.dmg --clobber
+          gh release edit v0.1.0-preview --notes 'Unsigned Windows and macOS previews. macOS builds are not notarized and may be blocked by Gatekeeper. Chrome extension compatibility is partial; Android is not yet available.'
 
